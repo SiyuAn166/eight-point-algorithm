@@ -100,15 +100,15 @@ def FindFundamentalMatrixRansac(pts1, pts2, num_trials = 1000, threshold = 0.01)
         F = FindFundamentalMatrix(epts1, epts2) # estimate F
         pts1, pts2 = np.hstack([pts1, np.ones(n)]), np.hstack([pts2, np.ones(n)]) # build ppints [x, y, 1]
 		
-		cntr = 0
-		for i in range(n):
-			dist = abs(pts1[i].T @ F @ pts2[i]) # distance
-			if dist < threshold:
-				cntr += 1
-		# update
-		if cntr > n_max:
-			n_max = cntr
-			F_r = F
+	cntr = 0
+	for i in range(n):
+		dist = abs(pts1[i].T @ F @ pts2[i]) # distance
+		if dist < threshold:
+			cntr += 1
+	# update
+	if cntr > n_max:
+		n_max = cntr
+		F_r = F
 	
 	return F_r
 	

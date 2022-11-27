@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 from PIL import Image
 import matplotlib.pyplot as plt
-import os, random
+import os
 
 def find_matching_keypoints(image1, image2):
     #Input: two images (numpy arrays)
@@ -50,8 +50,6 @@ def FindFundamentalMatrix(pts1, pts2):
     #Input: two lists of corresponding keypoints (numpy arrays of shape (N, 2))
     #Output: fundamental matrix (numpy array of shape (3, 3))
     
-    assert len(pts1)==len(pts2), "Points number do not match."
-
     #todo: Normalize the points
     pts1, pts2 = pts1.T, pts2.T # (2,N)
     n = pts1.shape[1]
@@ -82,49 +80,45 @@ def FindFundamentalMatrix(pts1, pts2):
     u,s,v = np.linalg.svd(F)
     F = u @ np.diag([*s[:2], 0]) @ v
     F = T2.T @ F @ T1
-    F = F/F[-1,-1]
+    
     return F
     
 def FindFundamentalMatrixRansac(pts1, pts2, num_trials = 1000, threshold = 0.01):
     #Input: two lists of corresponding keypoints (numpy arrays of shape (N, 2))
     #Output: fundamental matrix (numpy array of shape (3, 3))
 
-    assert len(pts1)==len(pts2), "Points number do not match."
+    #todo: Run RANSAC and find the best fundamental matrix
+	assert len(pts1)==len(pts2), "Points number do not match."
     n = len(pts1)
     n_max = 0
-    F_r = np.zeros((3,3), dtype=float)
-    mask = np.zeros(n)
+	F_r = np.zeros((3,3), dtype=float)
+
 	# main loop
     for _ in range(num_trials):
         id = np.random.choice(n, 8, replace=False)  # random choice    
         epts1, epts2 = pts1[id], pts2[id]   # 8 points
-        mask_ = np.zeros(n)
         F = FindFundamentalMatrix(epts1, epts2) # estimate F
-        pts1_x, pts2_x = np.hstack([pts1, np.ones((n,1))]), np.hstack([pts2, np.ones((n,1))]) # build ppints [x, y, 1]
+        pts1, pts2 = np.hstack([pts1, np.ones(n)]), np.hstack([pts2, np.ones(n)]) # build ppints [x, y, 1]
 		
-        cntr = 0
-        for i in range(n):
-            dist = abs(pts2_x[i].T @ F @ pts1_x[i]) # distance = 0
-            if dist < threshold:
-                cntr += 1
-                mask_[i] = 1
-        # update
-        if cntr > n_max:
-            n_max = cntr
-            F_r = F
-            mask = mask_.astype(int)
+		cntr = 0
+		for i in range(n):
+			dist = abs(pts1[i].T @ F @ pts2[i]) # distance
+			if dist < threshold:
+				cntr += 1
+		# update
+		if cntr > n_max:
+			n_max = cntr
+			F_r = F
+	
+	return F_r
+	
+	
 
-    good1, good2 = pts1[mask==1], pts2[mask==1]
-    F = FindFundamentalMatrix(good1, good2)
-
-    return F_r
-        
-    
 
 if __name__ == '__main__':
     #Set parameters
     data_path = './data'
-    use_ransac = True
+    use_ransac = False
 
     #Load images
     image1_path = os.path.join(data_path, 'myleft.jpg')
@@ -138,18 +132,12 @@ if __name__ == '__main__':
 
     #Builtin opencv function for comparison
     F_true = cv2.findFundamentalMat(pts1, pts2, cv2.FM_8POINT)[0]
-    
 
     #todo: FindFundamentalMatrix
     if use_ransac:
-        F = FindFundamentalMatrixRansac(pts1, pts2, threshold=1)
-        F_true = cv2.findFundamentalMat(pts1, pts2, cv2.FM_RANSAC, 0.01)[0]
-        print(F)
-        print(F_true)
+        F = FindFundamentalMatrixRansac(pts1, pts2, 0.2)
     else:
         F = FindFundamentalMatrix(pts1, pts2)
-    
-        
 
     # Find epilines corresponding to points in second image,  and draw the lines on first image
     lines1 = cv2.computeCorrespondEpilines(pts2.reshape(-1, 1, 2), 2, F)
@@ -181,6 +169,8 @@ if __name__ == '__main__':
     axis[1].axis('off')
 
     plt.show()
+
+
 
 
 
